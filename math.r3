@@ -8,6 +8,8 @@ fn: func [x] [
 	power (x - 1) 3
 ]
 
+fn1: func [x] [power (x - 2) 2]
+
 math: context [
 	; Tolerance
 	eps:       1E-15
@@ -298,19 +300,63 @@ math: context [
 		]
 
 		steffensen-aitken: func [
-			f [function!]
-			x [decimal!]
-			/local fx ffx u v
+			f  [function!]
+			x  [decimal!]
+			/diff
+			df [function!]
+			/local fx dfx x1 x2 u v xn
 		] [
 			steps: 1
+			x1: 0
+			x2: 0
+			fx:  f x
 			while [steps < max-steps] [
-				fx:  f x
-				if (abs f x) < eps [ return x ]
-				ffx: f fx
-				u:   power (fx - x) 2
-				v:   ffx - (2 * fx) + x 
-				x:   x - (u / v)
-				print u 
+				dfx: either diff [df :f x] [derive/five-point :f x]				
+				xn:  x - (fx / dfx)
+				x2:  x1
+				x1:  x
+				x:   xn
+				if steps > 3 [
+					u: x - x1
+					v: xn - (2 * x) + x1
+					if v != 0 [
+						x: x1 - ((u * u) / v)
+					]
+				]
+				fx: f x
+				if (abs fx) < eps [ return x ]				
+				steps: steps + 1
+			]
+			"maximum number of steps exceeded"
+		]
+	]
+
+	optimize: context [
+		golden: func [
+			f [function!]
+			a [decimal!]
+			b [decimal!]
+			/local c d fc fd phi
+		] [
+			phi:   (square-root 5)  - 1 / 2
+			steps: 1
+			c:     b - (phi * (b - a))
+			d:     a + (phi * (b - a))
+			while [steps < max-steps] [
+				fc: f c
+				fd: f d
+				either fc < fd [
+					b: d
+					d: c
+					c: b - (phi * (b - a))	
+				] [
+					a: c
+					c: d
+					d: a + (phi * (b - a))
+				]
+				if (abs c - d) < eps [
+					return (a + b) / 2
+				]
 				steps: steps + 1
 			]
 			"maximum number of steps exceeded"
